@@ -23,7 +23,6 @@ export default defineEventHandler(async (event) => {
             data: {
               phoneNumber: user.phoneNumber,
               name: user.name || null,
-              surName: user.surName || null,
               userType: 'TEMPORARY'
             }
           })
@@ -47,7 +46,7 @@ export default defineEventHandler(async (event) => {
           deliveredDate: cargo.deliveredDate
         },
         create: {
-          trackingNumber,
+          trackingNumber: trackingNumber.trim(),
           nickname: cargo.nickname,
           cargoType: cargo.cargoType,
           currentStatus: cargo.currentStatus,
