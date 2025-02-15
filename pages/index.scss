@@ -12,10 +12,13 @@
   }
   
   .cargos-table-container {
-    margin: 2rem 0;
+    margin: 1rem 0;
     
-    h2 {
+    h2, h3, h4 {
       margin-bottom: 1rem;
+    }
+    h3, h4{
+      font-weight: 600;
     }
   }
   

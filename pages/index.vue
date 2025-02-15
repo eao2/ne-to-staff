@@ -8,12 +8,19 @@
         <input 
           v-model="trackingNumber"
           placeholder="Enter tracking number"
+          @input="debouncedSearchCargo"
         />
         <button 
           @click="searchCargo"
           class="btn-search"
         >
           Search
+        </button>
+        <button 
+          @click="trackingNumber = ''"
+          class="btn-search"
+        >
+          Clear
         </button>
       </div>
     </div>
@@ -27,14 +34,13 @@
             <label>Phone Number</label>
             <input 
               v-model="userData.phoneNumber"
-              :readonly="isExistingUser"
+              @input="handlePhoneNumberChange"
             />
           </div>
           <div class="form-group">
             <label>Name</label>
             <input 
               v-model="userData.name"
-              :readonly="isExistingUser"
             />
           </div>
         </div>
@@ -72,7 +78,7 @@
               <option value="DELIVERED">Delivered</option>
             </select>
           </div>
-          <div v-if="cargoData.currentStatus === 'DELIVERED_TO_UB'" class="form-group">
+          <div v-if="cargoData.currentStatus === 'DELIVERED_TO_UB' || cargoData.currentStatus === 'DELIVERED' " class="form-group">
             <label>Price</label>
             <input 
               v-model="cargoData.price"
@@ -109,9 +115,13 @@
     </div>
 
     <!-- User Cargos Table -->
+    <div v-if="userCargos.length == 0" class="cargos-table-container">
+      <p>{{ usercargosMessage }}</p>
+    </div>
     <div v-if="userCargos.length > 0" class="cargos-table-container">
       <h2>User Cargos</h2>
       <h3>Name: {{ userCargosName }}</h3>
+      <h4 v-if="totalPrice > 0">Total Price (Delivered to UB): {{ totalPrice }}₮</h4>
       <table class="cargos-table">
         <thead>
           <tr>
@@ -150,6 +160,37 @@ const searchPhoneNumber = ref('')
 const isExistingUser = ref(false)
 const userCargos = ref([])
 const userCargosName = ref('')
+const usercargosMessage = ref('')
+let searchTimeout = null
+
+// Create a debounced search function
+function debouncedSearchCargo() {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+  
+  searchTimeout = setTimeout(() => {
+    if (trackingNumber.value.trim()) {
+      searchCargo()
+    } else {
+      clearForm()
+    }
+  }, 500) // 500ms delay
+}
+
+// Handle phone number changes
+function handlePhoneNumberChange() {
+  // Clear the name when phone number changes
+  userData.value.name = ''
+  // Reset existing user flag to allow saving new user data
+  isExistingUser.value = false
+}
+
+const totalPrice = computed(() => {
+  return userCargos.value
+    .filter(cargo => cargo.currentStatus === 'DELIVERED_TO_UB' && cargo.price)
+    .reduce((sum, cargo) => sum + Number(cargo.price), 0)
+})
 
 const userData = ref({
   phoneNumber: '',
@@ -159,7 +200,7 @@ const userData = ref({
 const cargoData = ref({
   nickname: '',
   cargoType: 'NORMAL',
-  currentStatus: 'PRE_REGISTERED',
+  currentStatus: 'RECEIVED_AT_ERENHOT',
   price: null,
   preRegisteredDate: null,
   receivedAtErenhotDate: null,
@@ -205,7 +246,11 @@ function getLatestDate(cargo) {
 }
 
 async function searchUserCargos(phoneNumber) {
-  if (!phoneNumber) return
+  if (!phoneNumber){
+    userCargos.value = []
+    usercargosMessage.value = 'cleared'
+    return
+  }
   
   try {
     const response = await $fetch('/api/cargo/user-cargos', {
@@ -217,6 +262,7 @@ async function searchUserCargos(phoneNumber) {
     
     userCargos.value = response.cargos || []
     userCargosName.value = response.name || ''
+    usercargosMessage.value = response.message || ''
   } catch (error) {
     console.error('Error searching user cargos:', error)
     alert('Error searching user cargos')
@@ -249,7 +295,7 @@ function handleStatusChange(event) {
 
 // Reset price when status changes from DELIVERED_TO_UB
 watch(() => cargoData.value.currentStatus, (newStatus) => {
-  if (newStatus !== 'DELIVERED_TO_UB') {
+  if (newStatus !== 'DELIVERED_TO_UB' && newStatus !== 'DELIVERED') {
     cargoData.value.price = null
   }
 })
@@ -261,10 +307,29 @@ async function submitCargo() {
   }
 
   try {
-    const submissionData = {
+    let submissionData = {
       trackingNumber: trackingNumber.value.trim(),
-      cargo: cargoData.value,
-      user: userData.value.phoneNumber ? userData.value : null // Make user data optional
+      cargo: {
+        currentStatus: cargoData.value.currentStatus,
+        price: cargoData.value.price,
+        preRegisteredDate: cargoData.value.preRegisteredDate,
+        receivedAtErenhotDate: cargoData.value.receivedAtErenhotDate,
+        inTransitDate: cargoData.value.inTransitDate,
+        deliveredToUBDate: cargoData.value.deliveredToUBDate,
+        deliveredDate: cargoData.value.deliveredDate
+      }
+    }
+
+    // Only include full cargo data and user data for new entries or when modifying non-status fields
+    if (!isExistingUser.value || cargoData.value.nickname || cargoData.value.cargoType) {
+      submissionData.cargo = {
+        ...submissionData.cargo,
+        nickname: cargoData.value.nickname,
+        cargoType: cargoData.value.cargoType
+      }
+      if (userData.value.phoneNumber) {
+        submissionData.user = userData.value
+      }
     }
 
     await $fetch('/api/cargo/save', {
@@ -275,7 +340,8 @@ async function submitCargo() {
     alert('Cargo information saved successfully')
     
     if (userData.value.phoneNumber) {
-      await searchUserCargos(userData.value.phoneNumber) // Only refresh if phone number search is active
+      await searchUserCargos(userData.value.phoneNumber)
+      searchPhoneNumber.value = userData.value.phoneNumber
     }
   } catch (error) {
     console.error('Error saving cargo:', error)
@@ -304,7 +370,7 @@ function clearForm() {
 
 async function searchCargo() {
   if (!trackingNumber.value.trim()) {
-    alert('Please enter a tracking number')
+    clearForm()
     return
   }
 
@@ -321,7 +387,7 @@ async function searchCargo() {
       
       cargoData.value = {
         ...response.cargo,
-        currentStatus: currentStatus || response.cargo.currentStatus
+        currentStatus: response.cargo.currentStatus || currentStatus
       }
       
       if (response.cargo.user) {
@@ -341,4 +407,11 @@ async function searchCargo() {
     alert('Error searching cargo')
   }
 }
+
+// Clean up the timeout when component is unmounted
+onUnmounted(() => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+})
 </script>
