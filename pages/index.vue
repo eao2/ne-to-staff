@@ -1,6 +1,6 @@
 <template>
   <div class="cargo-management">
-    <h1>NE-TO beta</h1>
+    <div class="top"><h1>NE-TO beta TRACK</h1><a href="/add_phone"><p>by phone</p></a></div>
     
     <div class="search-section">
       <label>Tracking Number</label>
@@ -126,7 +126,7 @@
         <thead>
           <tr>
             <th>Tracking Number</th>
-            <th>Nickname</th>
+            <!-- <th>Nickname</th> -->
             <th>Type</th>
             <th>Status</th>
             <th>Price</th>
@@ -136,7 +136,7 @@
         <tbody>
           <tr v-for="cargo in sortedUserCargos" :key="cargo.id">
             <td>{{ cargo.trackingNumber }}</td>
-            <td>{{ cargo.nickname || '-' }}</td>
+            <!-- <td>{{ cargo.nickname || '-' }}</td> -->
             <td>{{ cargo.cargoType }}</td>
             <td>{{ formatStatus(cargo.currentStatus) }}</td>
             <td>{{ cargo.price ? `$${cargo.price}` : '-' }}</td>
@@ -231,7 +231,7 @@ function formatStatus(status) {
 
 function formatDate(date) {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString()
+  return `${new Date(date).toLocaleDateString()} ${new Date(date).toLocaleTimeString({hourCycle: 'h24'})}`
 }
 
 function getLatestDate(cargo) {
