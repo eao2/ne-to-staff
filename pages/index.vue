@@ -100,7 +100,7 @@
           placeholder="Enter phone number"
         />
         <button 
-          @click="searchUserCargos"
+          @click="searchUserCargos(searchPhoneNumber)"
           class="btn-search"
         >
           Search Cargos
@@ -111,6 +111,7 @@
     <!-- User Cargos Table -->
     <div v-if="userCargos.length > 0" class="cargos-table-container">
       <h2>User Cargos</h2>
+      <h3>Name: {{ userCargosName }}</h3>
       <table class="cargos-table">
         <thead>
           <tr>
@@ -137,6 +138,10 @@
   </div>
 </template>
 
+<style lang="scss">
+@use "./index.scss";
+</style>
+
 <script setup>
 import { ref, computed, watch } from 'vue'
 
@@ -144,6 +149,7 @@ const trackingNumber = ref('')
 const searchPhoneNumber = ref('')
 const isExistingUser = ref(false)
 const userCargos = ref([])
+const userCargosName = ref('')
 
 const userData = ref({
   phoneNumber: '',
@@ -198,18 +204,19 @@ function getLatestDate(cargo) {
   return dates.find(date => date) || null
 }
 
-async function searchUserCargos() {
-  if (!searchPhoneNumber.value) return
+async function searchUserCargos(phoneNumber) {
+  if (!phoneNumber) return
   
   try {
     const response = await $fetch('/api/cargo/user-cargos', {
       method: 'POST',
       body: {
-        phoneNumber: searchPhoneNumber.value
+        phoneNumber: phoneNumber
       }
     })
     
     userCargos.value = response.cargos || []
+    userCargosName.value = response.name || ''
   } catch (error) {
     console.error('Error searching user cargos:', error)
     alert('Error searching user cargos')
@@ -266,8 +273,9 @@ async function submitCargo() {
     })
     
     alert('Cargo information saved successfully')
-    if (searchPhoneNumber.value) {
-      await searchUserCargos() // Only refresh if phone number search is active
+    
+    if (userData.value.phoneNumber) {
+      await searchUserCargos(userData.value.phoneNumber) // Only refresh if phone number search is active
     }
   } catch (error) {
     console.error('Error saving cargo:', error)
