@@ -6,19 +6,26 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { trackingNumber, cargo, user } = body
 
+  if (!trackingNumber) {
+    throw createError({
+      statusCode: 400,
+      message: 'Tracking number is required'
+    })
+  }
+
   try {
     return await prisma.$transaction(async (tx) => {
-      // Handle user association only if user data is provided
+      // Handle optional user association
       let userId = null
       
-      if (user && user.phoneNumber) {
+      if (user?.phoneNumber) {
         const dbUser = await tx.user.findUnique({
           where: { phoneNumber: user.phoneNumber }
         })
-
+        
         if (dbUser) {
           userId = dbUser.id
-        } else {
+        } else if (user.phoneNumber) {
           const newUser = await tx.user.create({
             data: {
               phoneNumber: user.phoneNumber,

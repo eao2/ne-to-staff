@@ -19,20 +19,19 @@
     </div>
 
     <form @submit.prevent="submitCargo" class="cargo-form">
-      <!-- User Information -->
+      <!-- Optional User Information -->
       <div class="form-section">
-        <h2>User Information</h2>
+        <h2>User Information (Optional)</h2>
         <div class="form-grid">
           <div class="form-group">
             <label>Phone Number</label>
             <input 
               v-model="userData.phoneNumber"
               :readonly="isExistingUser"
-              required
             />
           </div>
           <div class="form-group">
-            <label>Name (Optional)</label>
+            <label>Name</label>
             <input 
               v-model="userData.name"
               :readonly="isExistingUser"
@@ -91,10 +90,10 @@
         Save Cargo Information
       </button>
     </form>
-    
-    <!-- Phone Number Search -->
+
+    <!-- Phone Number Search (Optional) -->
     <div class="search-section">
-      <label>Search by Phone Number</label>
+      <label>Search by Phone Number (Optional)</label>
       <div class="search-container">
         <input 
           v-model="searchPhoneNumber"
@@ -135,12 +134,11 @@
         </tbody>
       </table>
     </div>
-
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const trackingNumber = ref('')
 const searchPhoneNumber = ref('')
@@ -250,11 +248,16 @@ watch(() => cargoData.value.currentStatus, (newStatus) => {
 })
 
 async function submitCargo() {
+  if (!trackingNumber.value.trim()) {
+    alert('Tracking number is required')
+    return
+  }
+
   try {
     const submissionData = {
       trackingNumber: trackingNumber.value.trim(),
       cargo: cargoData.value,
-      user: userData.value.phoneNumber ? userData.value : null
+      user: userData.value.phoneNumber ? userData.value : null // Make user data optional
     }
 
     await $fetch('/api/cargo/save', {
@@ -263,22 +266,40 @@ async function submitCargo() {
     })
     
     alert('Cargo information saved successfully')
-    await searchUserCargos() // Refresh the cargos table
+    if (searchPhoneNumber.value) {
+      await searchUserCargos() // Only refresh if phone number search is active
+    }
   } catch (error) {
     console.error('Error saving cargo:', error)
     alert('Error saving cargo information')
   }
 }
 
-function clearUserData() {
+function clearForm() {
   userData.value = {
     phoneNumber: '',
     name: ''
   }
   isExistingUser.value = false
+  cargoData.value = {
+    nickname: '',
+    cargoType: 'NORMAL',
+    currentStatus: 'PRE_REGISTERED',
+    price: null,
+    preRegisteredDate: null,
+    receivedAtErenhotDate: null,
+    inTransitDate: null,
+    deliveredToUBDate: null,
+    deliveredDate: null
+  }
 }
 
 async function searchCargo() {
+  if (!trackingNumber.value.trim()) {
+    alert('Please enter a tracking number')
+    return
+  }
+
   try {
     const response = await $fetch('/api/cargo/search', {
       method: 'POST',
@@ -302,21 +323,10 @@ async function searchCargo() {
         }
         isExistingUser.value = true
       } else {
-        clearUserData()
+        clearForm()
       }
     } else {
-      clearUserData()
-      cargoData.value = {
-        nickname: '',
-        cargoType: 'NORMAL',
-        currentStatus: 'PRE_REGISTERED',
-        price: null,
-        preRegisteredDate: null,
-        receivedAtErenhotDate: null,
-        inTransitDate: null,
-        deliveredToUBDate: null,
-        deliveredDate: null
-      }
+      clearForm()
     }
   } catch (error) {
     console.error('Error searching cargo:', error)
@@ -324,7 +334,3 @@ async function searchCargo() {
   }
 }
 </script>
-
-<style lang="scss">
-@use './index.scss'
-</style>
