@@ -27,81 +27,99 @@
           </button>
         </div>
       </div>
-  
-      <form @submit.prevent="submitCargo" class="cargo-form">
-        <!-- User Information -->
-        <div class="form-section">
-          <h2>User Information</h2>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Name</label>
-              <input 
-                v-model="userData.name"
-                :disabled="isExistingUser"
-              />
-            </div>
+
+    <!-- Original cargo form with modified status handling -->
+    <form @submit.prevent="submitCargo" class="cargo-form">
+      
+      <div class="form-section">
+        <h2>User Information</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Name</label>
+            <input 
+              v-model="userData.name"
+              :disabled="isExistingUser"
+            />
           </div>
         </div>
-  
-        <!-- Cargo Information -->
-        <div class="form-section">
-          <h2>Add New Cargo</h2>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Tracking Number</label>
-              <input 
-                v-model="cargoData.trackingNumber"
-                required
-              />
-            </div>
-            <!-- <div class="form-group">
-              <label>Nickname (Optional)</label>
-              <input 
-                v-model="cargoData.nickname"
-              />
-            </div> -->
-            <div class="form-group">
-              <label>Cargo Type</label>
-              <select 
-                v-model="cargoData.cargoType"
-              >
-                <option value="NORMAL">Normal</option>
-                <option value="QUICK">Quick</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select 
-                v-model="cargoData.currentStatus"
-                @change="handleStatusChange"
-              >
-                <option value="PRE_REGISTERED">Pre-registered</option>
-                <option value="RECEIVED_AT_ERENHOT">Received at Erenhot</option>
-                <option value="IN_TRANSIT">In Transit</option>
-                <option value="DELIVERED_TO_UB">Delivered to UB</option>
-                <option value="DELIVERED">Delivered</option>
-              </select>
-            </div>
-            <div v-if="cargoData.currentStatus === 'DELIVERED_TO_UB' || cargoData.currentStatus === 'DELIVERED'" class="form-group">
-              <label>Price</label>
-              <input 
-                v-model="cargoData.price"
-                type="number"
-                step="1"
-              />
-            </div>
+      </div>
+      
+      <!-- Modified Cargo Information section -->
+      <div class="form-section">
+        <h2>Add New Cargo</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tracking Number</label>
+            <input 
+              v-model="cargoData.trackingNumber"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Cargo Type</label>
+            <select 
+              v-model="cargoData.cargoType"
+            >
+              <option value="NORMAL">Normal</option>
+              <option value="QUICK">Quick</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select 
+              v-model="cargoData.currentStatus"
+            >
+              <option value="PRE_REGISTERED">Pre-registered</option>
+              <option value="RECEIVED_AT_ERENHOT">Received at Erenhot</option>
+              <option value="IN_TRANSIT">In Transit</option>
+              <option value="DELIVERED_TO_UB">Delivered to UB</option>
+              <option value="DELIVERED">Delivered</option>
+            </select>
+          </div>
+          <div v-if="cargoData.currentStatus === 'DELIVERED_TO_UB' || cargoData.currentStatus === 'DELIVERED'" class="form-group">
+            <label>Price</label>
+            <input 
+              v-model="cargoData.price"
+              type="number"
+              step="1"
+            />
           </div>
         </div>
+      </div>
+
+      <button 
+        type="submit"
+        class="btn-submit"
+        :disabled="!phoneNumber || !cargoData.trackingNumber"
+      >
+        Add New && Update Cargo Information
+      </button>
+    </form>
+
+    <div class="breakline"></div>
+
+    <!-- Add new Status Update section -->
+    <form @submit.prevent="" class="status-section">
+      <h2>Update Status to delivered</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tracking Number</label>
+          <input 
+            v-model="statusUpdate.trackingNumber"
+            placeholder="Enter tracking number"
+          />
+          <button 
+            @click="updateToDelivered"
+            class="btn-submit"
+            :disabled="!statusUpdate.trackingNumber"
+          >
+            Mark as Delivered
+          </button>
+        </div>
+      </div>
+    </form>
   
-        <button 
-          type="submit"
-          class="btn-submit"
-          :disabled="!phoneNumber || !cargoData.trackingNumber"
-        >
-          Add New Cargo
-        </button>
-      </form>
-  
+    <div class="breakline"></div>
       <!-- User Cargos Table -->
       <div v-if="userCargos.length === 0" class="cargos-table-container">
         <p>{{ userCargosMessage }}</p>
@@ -151,6 +169,10 @@
   const userCargosName = ref('')
   const userCargosMessage = ref('')
   let searchTimeout = null
+
+  const statusUpdate = ref({
+  trackingNumber: ''
+  })
   
   const userData = ref({
     phoneNumber: '',
@@ -227,26 +249,31 @@
     return dates.find(date => date) || null
   }
   
-  function handleStatusChange(event) {
-    const newStatus = event.target.value
-    const currentDate = new Date().toISOString()
-  
-    switch (newStatus) {
-      case 'PRE_REGISTERED':
-        cargoData.value.preRegisteredDate = currentDate
-        break
-      case 'RECEIVED_AT_ERENHOT':
-        cargoData.value.receivedAtErenhotDate = currentDate
-        break
-      case 'IN_TRANSIT':
-        cargoData.value.inTransitDate = currentDate
-        break
-      case 'DELIVERED_TO_UB':
-        cargoData.value.deliveredToUBDate = currentDate
-        break
-      case 'DELIVERED':
-        cargoData.value.deliveredDate = currentDate
-        break
+  async function updateToDelivered() {
+    if (!statusUpdate.value.trackingNumber.trim()) {
+      alert('Tracking number is required')
+      return
+    }
+
+    try {
+      await $fetch('/api/cargo/save', {
+        method: 'POST',
+        body: {
+          trackingNumber: statusUpdate.value.trackingNumber.trim(),
+          cargo: {
+            currentStatus: 'DELIVERED'
+          }
+        }
+      })
+      
+      alert('Status updated successfully')
+      statusUpdate.value.trackingNumber = ''
+      if (phoneNumber.value) {
+        await searchUser()
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      alert('Error updating status')
     }
   }
   

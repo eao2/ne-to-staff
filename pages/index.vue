@@ -1,7 +1,8 @@
 <template>
   <div class="cargo-management">
     <div class="top"><h1>NE-TO beta TRACK</h1><a href="/add_phone"><p>by phone</p></a></div>
-    
+
+    <!-- Original Search Section -->
     <div class="search-section">
       <label>Tracking Number</label>
       <div class="search-container">
@@ -25,8 +26,9 @@
       </div>
     </div>
 
+    <!-- Rest of the original template remains exactly the same until the script section -->
     <form @submit.prevent="submitCargo" class="cargo-form">
-      <!-- Optional User Information -->
+      <!-- User Information section - unchanged -->
       <div class="form-section">
         <h2>User Information (Optional)</h2>
         <div class="form-grid">
@@ -46,7 +48,7 @@
         </div>
       </div>
 
-      <!-- Cargo Information -->
+      <!-- Modified Cargo Information section -->
       <div class="form-section">
         <h2>Cargo Information</h2>
         <div class="form-grid">
@@ -69,7 +71,6 @@
             <label>Status</label>
             <select 
               v-model="cargoData.currentStatus"
-              @change="handleStatusChange"
             >
               <option value="PRE_REGISTERED">Pre-registered</option>
               <option value="RECEIVED_AT_ERENHOT">Received at Erenhot</option>
@@ -78,7 +79,7 @@
               <option value="DELIVERED">Delivered</option>
             </select>
           </div>
-          <div v-if="cargoData.currentStatus === 'DELIVERED_TO_UB' || cargoData.currentStatus === 'DELIVERED' " class="form-group">
+          <div v-if="cargoData.currentStatus === 'DELIVERED_TO_UB' || cargoData.currentStatus === 'DELIVERED'" class="form-group">
             <label>Price</label>
             <input 
               v-model="cargoData.price"
@@ -97,22 +98,23 @@
       </button>
     </form>
 
-    <!-- Phone Number Search (Optional) -->
-    <div class="search-section">
-      <label>Search by Phone Number (Optional)</label>
+        <!-- Status Update Section -->
+    <form @submit.prevent="" class="search-section">
+      <label>Update Status</label>
       <div class="search-container">
         <input 
-          v-model="searchPhoneNumber"
-          placeholder="Enter phone number"
+          v-model="quickUpdate.trackingNumber"
+          placeholder="Enter tracking number for quick update"
         />
         <button 
-          @click="searchUserCargos(searchPhoneNumber)"
+          @click="updateToDelivered"
           class="btn-search"
+          :disabled="!quickUpdate.trackingNumber"
         >
-          Search Cargos
+          Mark Delivered
         </button>
       </div>
-    </div>
+    </form>
 
     <!-- User Cargos Table -->
     <div v-if="userCargos.length == 0" class="cargos-table-container">
@@ -192,6 +194,12 @@ const totalPrice = computed(() => {
     .reduce((sum, cargo) => sum + Number(cargo.price), 0)
 })
 
+// Add new ref for quick update
+const quickUpdate = ref({
+  trackingNumber: ''
+})
+
+// Keep existing user and cargo data structure
 const userData = ref({
   phoneNumber: '',
   name: ''
@@ -201,14 +209,8 @@ const cargoData = ref({
   nickname: '',
   cargoType: 'NORMAL',
   currentStatus: 'RECEIVED_AT_ERENHOT',
-  price: null,
-  preRegisteredDate: null,
-  receivedAtErenhotDate: null,
-  inTransitDate: null,
-  deliveredToUBDate: null,
-  deliveredDate: null
+  price: null
 })
-
 // Status priority for sorting
 const statusPriority = {
   'PRE_REGISTERED': 1,
@@ -269,29 +271,6 @@ async function searchUserCargos(phoneNumber) {
   }
 }
 
-function handleStatusChange(event) {
-  const newStatus = event.target.value
-  const currentDate = new Date().toISOString()
-
-  // Update corresponding date based on status
-  switch (newStatus) {
-    case 'PRE_REGISTERED':
-      cargoData.value.preRegisteredDate = currentDate
-      break
-    case 'RECEIVED_AT_ERENHOT':
-      cargoData.value.receivedAtErenhotDate = currentDate
-      break
-    case 'IN_TRANSIT':
-      cargoData.value.inTransitDate = currentDate
-      break
-    case 'DELIVERED_TO_UB':
-      cargoData.value.deliveredToUBDate = currentDate
-      break
-    case 'DELIVERED':
-      cargoData.value.deliveredDate = currentDate
-      break
-  }
-}
 
 // Reset price when status changes from DELIVERED_TO_UB
 watch(() => cargoData.value.currentStatus, (newStatus) => {
@@ -299,6 +278,34 @@ watch(() => cargoData.value.currentStatus, (newStatus) => {
     cargoData.value.price = null
   }
 })
+
+async function updateToDelivered() {
+  if (!quickUpdate.value.trackingNumber.trim()) {
+    alert('Tracking number is required')
+    return
+  }
+
+  try {
+    await $fetch('/api/cargo/save', {
+      method: 'POST',
+      body: {
+        trackingNumber: quickUpdate.value.trackingNumber.trim(),
+        cargo: {
+          currentStatus: 'DELIVERED'
+        }
+      }
+    })
+    
+    alert('Status updated successfully')
+    quickUpdate.value.trackingNumber = ''
+    if (userData.value.phoneNumber) {
+      await searchUserCargos(userData.value.phoneNumber)
+    }
+  } catch (error) {
+    console.error('Error updating status:', error)
+    alert('Error updating status')
+  }
+}
 
 async function submitCargo() {
   if (!trackingNumber.value.trim()) {
@@ -311,16 +318,11 @@ async function submitCargo() {
       trackingNumber: trackingNumber.value.trim(),
       cargo: {
         currentStatus: cargoData.value.currentStatus,
-        price: cargoData.value.price,
-        preRegisteredDate: cargoData.value.preRegisteredDate,
-        receivedAtErenhotDate: cargoData.value.receivedAtErenhotDate,
-        inTransitDate: cargoData.value.inTransitDate,
-        deliveredToUBDate: cargoData.value.deliveredToUBDate,
-        deliveredDate: cargoData.value.deliveredDate
+        price: cargoData.value.price
       }
     }
 
-    // Only include full cargo data and user data for new entries or when modifying non-status fields
+    // Only include optional fields for new entries or modifications
     if (!isExistingUser.value || cargoData.value.nickname || cargoData.value.cargoType) {
       submissionData.cargo = {
         ...submissionData.cargo,

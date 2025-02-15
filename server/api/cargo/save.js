@@ -1,11 +1,11 @@
-// server/api/cargo/save.post.ts
+// server/api/cargo/save.js
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const { trackingNumber, cargo, user } = body
-  
+ 
   if (!trackingNumber) {
     throw createError({
       statusCode: 400,
@@ -19,9 +19,8 @@ export default defineEventHandler(async (event) => {
       const existingCargo = await tx.cargoTracking.findUnique({
         where: { trackingNumber }
       })
-      
+     
       let userId = existingCargo?.userId || null
-
       if (user?.phoneNumber) {
         const dbUser = await tx.user.findUnique({
           where: { phoneNumber: user.phoneNumber }
@@ -41,21 +40,35 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // Prepare update data
+      // Handle status dates based on current status
+      const currentTime = new Date().toISOString()
       const updateData = {
-        currentStatus: cargo.currentStatus,
-        preRegisteredDate: cargo.preRegisteredDate,
-        receivedAtErenhotDate: cargo.receivedAtErenhotDate,
-        inTransitDate: cargo.inTransitDate,
-        deliveredToUBDate: cargo.deliveredToUBDate,
-        deliveredDate: cargo.deliveredDate
+        currentStatus: cargo.currentStatus
+      }
+
+      // Set the appropriate date based on status
+      switch (cargo.currentStatus) {
+        case 'PRE_REGISTERED':
+          updateData.preRegisteredDate = currentTime
+          break
+        case 'RECEIVED_AT_ERENHOT':
+          updateData.receivedAtErenhotDate = currentTime
+          break
+        case 'IN_TRANSIT':
+          updateData.inTransitDate = currentTime
+          break
+        case 'DELIVERED_TO_UB':
+          updateData.deliveredToUBDate = currentTime
+          break
+        case 'DELIVERED':
+          updateData.deliveredDate = currentTime
+          break
       }
 
       // Only update price if it's explicitly provided or if there's no existing price
       if (cargo.price !== undefined) {
         updateData.price = Number(cargo.price)
       } else if (existingCargo) {
-        // Preserve existing price
         updateData.price = existingCargo.price
       } else {
         updateData.price = null
@@ -82,6 +95,7 @@ export default defineEventHandler(async (event) => {
           cargoType: cargo.cargoType || 'NORMAL'
         }
       })
+
       return dbCargo
     })
   } catch (error) {
