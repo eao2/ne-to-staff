@@ -160,7 +160,7 @@
   @use "./index.scss";
   </style>
   
-  <script setup>
+<script setup>
   import { ref, computed, watch, onUnmounted } from 'vue'
   
   const phoneNumber = ref('')
