@@ -37,12 +37,10 @@
         </div>
   
         <div v-if="userCargos.length > 0" class="cargos-table-container">
-            <h2>{{ userCargosName }}</h2>
-            <h4 v-if="totalPrice > 0">
-            Нийт Дүн: {{ numberWithCommas(totalPrice) }}₮
-            </h4>
+          <h2 class="user-name">{{ userCargosName }}</h2>
+          <h3 class="total-price" v-if="totalPrice > 0">Нийт Дүн: {{ numberWithCommas(totalPrice) }}₮</h3>
             <div class="actions-container">
-            <button 
+            <button
                 @click="setAllDelivered" 
                 class="btn-deliver-all"
                 v-if="hasDeliverableItems"
@@ -141,7 +139,7 @@
   
   function formatStatus(status) {
     const statusMap = {
-      'PRE_REGISTERED': 'Бүртгэгдсэн',
+      'PRE_REGISTERED': 'Хэрэглэгч бүртгүүлсэн',
       'RECEIVED_AT_ERENHOT': 'Эрээнд ирсэн',
       'IN_TRANSIT': 'Замд яваа',
       'DELIVERED_TO_UB': 'УБ-д ирсэн',
@@ -373,26 +371,36 @@ input{
 
 // Table Styles
 .cargos-table-container {
-    background-color: white;
-    padding: 24px;
-    border-radius: 8px;
+  background-color: white;
+  border-radius: 8px;
+  padding-top: 1rem;
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 16px;
+  .user-name{
+    margin: 0 1rem;
+    font-weight: 600;
+  }
 
-th, td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid $border-color;
-}
-
-th {
+  .total-price{
+    margin: 1rem;
     font-weight: 500;
-    color: $text-color;
-    background-color: rgba($primary-color, 0.05);
-}
+  }
+
+  table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+
+  th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px dashed $border-color;
+  }
+
+  th {
+      font-weight: 500;
+      color: $text-color;
+      background-color: rgba($primary-color, 0.05);
+  }
 }
 }
 
@@ -447,7 +455,7 @@ th {
 @include button-base;
     background-color: #34A853;
     color: white;
-    margin-bottom: 1rem;
+    margin: 0 0 0 1rem;
 
     &:hover {
         filter: brightness(0.9);
